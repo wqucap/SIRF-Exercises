@@ -59,18 +59,11 @@ for epoch in range(5): # 5 full passes over the data
     optimizer.load_state_dict(optim_state)
     print(loss)  # print loss. We hope loss (a measure of wrong-ness) declines! 
     
-torch.save(net.state_dict(), "/home/sam/working/SIRF-Exercises/notebooks/PET_sensitivity/UNet.pt")
-torch.save({
-            'epoch': epoch,
-            'model_state_dict': net.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,
-            'train_loss_history': train_loss_history,
-            },  "/home/sam/working/SIRF-Exercises/notebooks/PET_sensitivity/UNet_full.pt")
-loss_history = []
+torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model.pt"))
 
+loss_history = []
 for i in train_loss_history:
     loss_history.append(i.item())
     
 plt.plot(loss_history)
-plt.savefig("/home/sam/working/SIRF-Exercises/notebooks/PET_sensitivity/loss_history.png")
+plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history.png"))
