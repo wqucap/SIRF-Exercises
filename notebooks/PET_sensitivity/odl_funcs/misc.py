@@ -13,6 +13,7 @@
 # obtain one at https://mozilla.org/MPL/2.0/.
 
 import numpy as np
+from scipy.ndimage import affine_transform
 
 
 def _getshapes_2d(center, max_radius, shape):
@@ -130,6 +131,27 @@ def ellipse_phantom(shape, ellipses):
         # Add the ellipse intensity to those points
         p[idx][inside] += intensity
     return p
+
+def random_2D_rotation():
+    """ Generate a random 2D rotation matrix in 3D space"""
+    phi = np.random.uniform(-0.05, 0.05)
+    c = np.cos(phi)
+    s = np.sin(phi)
+    R = np.array([[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]])
+    return R
+    
+def random_4x4_matrix():
+    """Generate a random 4x4 matrix"""
+    A = np.eye(4)
+    Sy, Sz = np.random.random()*0.5+0.75, np.random.random()*0.5+0.75
+    A[1,1], A[2,2] = Sy, Sz
+    Rx = random_2D_rotation()
+    return np.dot(Rx, A)
+
+def affine_transform_image(image, matrix):
+    """ Apply an affine transformation to an image"""
+    out = image.clone()
+    return out.fill(np.maximum(affine_transform(image.as_array(), np.linalg.inv(matrix)), 0))
 
 def random_shapes():
     x_0 = 1 * np.random.rand() - 0.5
