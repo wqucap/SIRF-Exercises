@@ -20,7 +20,6 @@ class SimpleCNN(nn.Module):
         self.relu  = nn.ReLU()
         self.conv2 = nn.Conv2d(64, 128, 3, padding = (1,1), padding_mode = 'reflect')
         self.conv3 = nn.Conv2d(128, out_ch, 3, padding = (1,1), padding_mode = 'reflect')
-        self.image_size = image_size
 
     def forward(self, x):
         x = self.relu(self.conv1(x))
