@@ -29,8 +29,8 @@ class Encoder(nn.Module):
     def forward(self, x):
         ftrs = []
         for block in self.enc_blocks:
-            x = block(x)
-            ftrs.append(x)
+            x = block(x) 
+            ftrs.append(x) 
             x = self.pool(x)
         return ftrs
 
@@ -48,7 +48,7 @@ class Decoder(nn.Module):
         for i in range(len(self.chs)-1):
             x        = self.upconvs[i](x)
             enc_ftrs = self.crop(encoder_features[i], x)
-            x        = torch.cat([x, enc_ftrs], dim=1)
+            x        = torch.cat([x, enc_ftrs], dim=1) # add skip connections
             x        = self.dec_blocks[i](x)
         return x
     
@@ -72,8 +72,8 @@ class UNet(nn.Module):
 
     def forward(self, x):
         enc_ftrs = self.encoder(x) # encoder features
-        out      = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:]) # decoder features
-        out      = self.head(out) # head
+        dec_ftrs = self.decoder(enc_ftrs[::-1][0], enc_ftrs[::-1][1:]) # decoder features
+        out      = self.head(dec_ftrs) # head
         if self.retain_dim:
             out = F.interpolate(out, self.out_sz)
         return out

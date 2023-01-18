@@ -15,6 +15,8 @@ import numpy as np
 from .misc import random_phantom, shepp_logan, affine_transform_image, random_4x4_matrix
 from sirf.STIR import AcquisitionSensitivityModel
 
+from scipy.ndimage import affine_transform
+
 class EllipsesDataset(torch.utils.data.Dataset):
 
     """ Pytorch Dataset for simulated ellipses

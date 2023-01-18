@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 
 import os
 
-from UNet import UNet
+from better_UNet import UNet
+from CNN import SimpleCNN
 
 from odl_funcs.ellipses import EllipsesDataset
 
@@ -32,7 +33,7 @@ valid_dataloader = torch.utils.data.DataLoader( \
     EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 100) \
     , batch_size=mini_batch, shuffle=False)
 
-net = UNet()
+net = SimpleCNN()
 net.to(device)
 
 lr = 0.0001
@@ -59,11 +60,11 @@ for epoch in range(5): # 5 full passes over the data
     optimizer.load_state_dict(optim_state)
     print(loss)  # print loss. We hope loss (a measure of wrong-ness) declines! 
     
-torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model.pt"))
+torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "simple_model.pt"))
 
 loss_history = []
 for i in train_loss_history:
     loss_history.append(i.item())
     
 plt.plot(loss_history)
-plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history.png"))
+plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history_CNN.png"))
