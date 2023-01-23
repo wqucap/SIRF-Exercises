@@ -12,11 +12,37 @@
 
 import torch
 import numpy as np
-from .misc import random_phantom, shepp_logan, affine_transform_image, random_4x4_matrix
-from sirf.STIR import AcquisitionSensitivityModel
+from .misc import random_phantom, shepp_logan, affine_transform_2D_image
+from sirf.STIR import AcquisitionSensitivityModel, AcquisitionModelUsingRayTracingMatrix
 
-from scipy.ndimage import affine_transform
+import brainweb
+from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+
+from scipy.ndimage import zoom
+
+def generate_random_transform_values():
+    theta = np.random.uniform(-np.pi/8, np.pi/8)
+    tx, ty = np.random.uniform(-2, 2), np.random.uniform(-2, 2)
+    sx, sy = np.random.uniform(0.9, 1.0), np.random.uniform(0.9, 1.0)
+    return theta, tx, ty, sx, sy
+
+# make average image value n
+def make_max_n(image, n):
+    image *= n/image.max()
+    return image
+
+def crop(img, cropx, cropy):
+    z,y,x = img.shape
+    startx = x//2-(cropx//2)
+    starty = y//2-(cropy//2)    
+    return img[:, starty:starty+cropy,startx:startx+cropx]
+
+# set up brainweb files
+fname, url= sorted(brainweb.utils.LINKS.items())[0]
+files = brainweb.get_file(fname, url, ".")
+data = brainweb.load_file(fname)
 class EllipsesDataset(torch.utils.data.Dataset):
 
     """ Pytorch Dataset for simulated ellipses
@@ -37,14 +63,11 @@ class EllipsesDataset(torch.utils.data.Dataset):
 
     def __init__(self, radon_transform, attenuation_image_template, sinogram_template, n_samples = 100, mode="train", seed = 1):
         self.radon_transform = radon_transform
-        self.attenuation_image_template = attenuation_image_template
+        self.attenuation_image_template = attenuation_image_template.clone()
         self.n_samples = n_samples
         self.template = sinogram_template
         self.one_sino = sinogram_template.get_uniform_copy(1)
-
-        if mode == 'valid':
-            self.x = self.attenuation_image_template.clone().fill(shepp_logan(self.attenuation_image_template.shape))*0.05
-            self.y = self.__get_sensitivity__(self.x)
+        self.tmp_acq_model = AcquisitionModelUsingRayTracingMatrix()
 
         self.primal_op_layer = radon_transform
         self.mode = mode
@@ -54,9 +77,9 @@ class EllipsesDataset(torch.utils.data.Dataset):
         # Forward project image then add noise
         asm_attn = AcquisitionSensitivityModel(attenuation_image, self.radon_transform)
         asm_attn.set_up(self.template)
-        self.radon_transform.set_acquisition_sensitivity(asm_attn)
-        self.radon_transform.set_up(self.template, attenuation_image)
-        y = self.radon_transform.backward(self.one_sino)
+        self.tmp_acq_model.set_acquisition_sensitivity(asm_attn)
+        self.tmp_acq_model.set_up(self.template, attenuation_image)
+        y = self.tmp_acq_model.backward(self.one_sino)
         return y
 
     def __len__(self):
@@ -66,20 +89,26 @@ class EllipsesDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Generates one sample of data
         if self.mode == "train":
-            x0 = self.attenuation_image_template.clone().fill(random_phantom(self.attenuation_image_template.shape))*0.05 # random CT image
-            x1 = self.__get_sensitivity__(x0) # random sensitivity image
-            x2 = affine_transform_image(x0, random_4x4_matrix()) # CT of transformed image
-            y = self.__get_sensitivity__(x2) # sensitivity map of transformed image
+            random_phantom_array = make_max_n(random_phantom(self.attenuation_image_template.shape, 20), 0.096*2)
+            ct_image = self.attenuation_image_template.clone().fill(random_phantom_array) # random CT image
+            sens_image = self.__get_sensitivity__(ct_image) # random sensitivity image
+            theta, tx, ty, sx, sy = generate_random_transform_values()
+            ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy, ct_image) # CT of transformed image
+            sens_image_transform = self.__get_sensitivity__(ct_image_transform) # sensitivity map of transformed image
 
         elif self.mode == "valid":
-            x0 = self.x
-            x1 = self.y # random sensitivity image
-            x2 = affine_transform_image(x0, random_4x4_matrix()) # CT diff map
-            y = self.__get_sensitivity__(x2)
+            brainweb.seed(np.random.randint(500,1500))
+            for f in tqdm([fname], desc="mMR ground truths", unit="subject"):
+                vol = brainweb.get_mmr_fromfile(f, petNoise=1, t1Noise=0.75, t2Noise=0.75, petSigma=1, t1Sigma=1, t2Sigma=1)
+            uMap_arr = vol['uMap'] # random CT brain image
+            umap_zoomed = crop(zoom(uMap_arr, 1, order=1), 155, 155)
+            ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_zoomed[50,:,:], axis=0)) # random CT image
+            sens_image = self.__get_sensitivity__(ct_image) # sensitivity image
+            theta, tx, ty, sx, sy = generate_random_transform_values()
+            ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy,ct_image) # CT of transformed image
+            sens_image_transform = self.__get_sensitivity__(ct_image_transform.clone())
 
         else:
             NotImplementedError
-
         
-        
-        return np.array([np.squeeze(x1.as_array()), np.squeeze(x2.as_array())]), y.as_array()
+        return np.array([np.squeeze(sens_image.as_array()), np.squeeze(ct_image_transform.as_array())]), sens_image_transform.as_array()#-sens_image.as_array()

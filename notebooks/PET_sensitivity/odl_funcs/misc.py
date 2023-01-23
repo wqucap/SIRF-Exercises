@@ -148,10 +148,23 @@ def random_4x4_matrix():
     Rx = random_2D_rotation()
     return np.dot(Rx, A)
 
-def affine_transform_image(image, matrix):
-    """ Apply an affine transformation to an image"""
-    out = image.clone()
-    return out.fill(np.maximum(affine_transform(image.as_array(), np.linalg.inv(matrix)), 0))
+def affine_transform_2D(theta, tx, ty, sx, sy, image_arr):
+    ''' create a random affine transformation for 2D images '''
+    # create the transformation matrix
+    transformation_matrix = np.array([[sx*np.cos(theta), -sy*np.sin(theta), tx],
+                                        [sx*np.sin(theta),  sy*np.cos(theta), ty],
+                                        [0, 0, 1]])
+
+    # apply the transformation
+    image_arr_transformed = affine_transform(image_arr, transformation_matrix, order=1)
+    return image_arr_transformed
+
+def affine_transform_2D_image(theta, tx, ty, sx, sy, image):
+    ''' create a random affine transformation for 2D images '''
+    res = image.clone()
+    res_arr = affine_transform_2D(theta, tx, ty, sx, sy, np.squeeze(image.as_array()))
+    res.fill(np.expand_dims(res_arr, 0))
+    return res
 
 def random_shapes():
     x_0 = 1 * np.random.rand() - 0.5
@@ -165,7 +178,7 @@ def random_phantom(space, n_ellipse=20):
     n = np.random.poisson(n_ellipse)
     shapes = [random_shapes() for _ in range(n)]
     for i in range(n):
-        shapes[i][0] = np.random.exponential(0.4)
+        shapes[i][0] = np.random.exponential(0.4)*np.random.random()
     x = ellipse_phantom(space[1:], shapes)
     x = [x]
     return np.array(x)
