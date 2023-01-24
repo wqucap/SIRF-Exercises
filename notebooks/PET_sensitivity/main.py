@@ -25,13 +25,15 @@ radon_transform = AcquisitionModelUsingRayTracingMatrix()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-mini_batch = 10
+mini_batch_train = 2**3
+mini_batch_valid = 2**1
+
 train_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 1000) \
-    , batch_size=mini_batch, shuffle=True)
+    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 2**6) \
+    , batch_size=mini_batch_train, shuffle=True)
 valid_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 100) \
-    , batch_size=mini_batch, shuffle=False)
+    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 2**1) \
+    , batch_size=mini_batch_valid, shuffle=False)
 
 net = SimpleCNN()
 net.to(device)
