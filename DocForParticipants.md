@@ -56,6 +56,12 @@ The next sections contain instructions to start the Jupyter notebook server with
 
 ## Start a jupyter notebook server for the SIRF exercises
 
+***Warning:** these instructions are when using JupyterLab as opposed to the "classic" notebook
+interface. If you choose to use the classic interface, you will have to modify the notebooks
+marginally by replacing `%matplotlib widget` with `%matplotlib notebook`.
+See also the [iPython section](#ipython) below.
+
+
 ### Using an Azure client (if available)
 
 The web-address should be something like https://sirf1....cloudapp.azure.com:9999/. See local instructions of your training sessoin.
@@ -75,7 +81,7 @@ Follow instructions given elsewhere.
   ```bash
   # optionally update to the latest release of SIRF and the SIRF-Exercises
   update_VM.sh
-  jupyter notebook
+  jupyter lab
   ```
 
 Then open a web-browser on your computer (i.e. the host) and point it to http://localhost:8888 (fill in the password or the token).
@@ -83,7 +89,7 @@ Then open a web-browser on your computer (i.e. the host) and point it to http://
 If this fails, you could try to use web browser in the VM instead.
 ```bash
    sudo apt install firefox
-   jupyter notebook --browser firefox
+   jupyter lab --browser firefox
 ```
 
 ### Using Docker
@@ -91,14 +97,14 @@ If this fails, you could try to use web browser in the VM instead.
 The instructions to start Docker and SIRF are documented in the [Docker instructions at SIRF](https://github.com/SyneRBI/SIRF-SuperBuild/blob/master/docker/README.md), please follow those to start it. 
 Docker is easiest in Linux, so if you are not familiar with Docker and are running on Windows, we suggest using the VM instead. 
 
-Please note that for SIRF 3.1, you need to point your (host) web-browser to http://localhost:9999 (fill in the `virtual` password).
+Please note that for at present (at least up to SIRF 3.4), you need to point your (host) web-browser to http://localhost:9999 (fill in the `virtual` password).
 
 ### Using your own installed SIRF and SIRF-exercises 
 
 You have a jupyter server (as you followed the [installation instructions](INSTALL.md)) so just use
    ```bash
    cd /wherever/you/installed/it/SIRF-Exercises
-   jupyter notebook
+   jupyter lab
    ```
 
 ## Starting a terminal via Jupyter
@@ -288,7 +294,7 @@ Use the `File` menu ("classic": `Close and halt`, JupyterLab: `Close and shutdow
 
 ***Warning:*** Due to a limitation in SIRF (and ISMRMRD) you cannot have 2 Python sessions simultaneously accessing
 the same MR HDF5 file.
-You have to use “File->Close and ...”  after you’ve finished with a notebook (or just “Kernel->Shutdown”).
+You have to use “File->Close and ...”  after you’ve finished with a notebook (or just “Kernel->Shutdown”). In JupyterLab, you can also use the [Running panel in the sidebar](https://jupyterlab.readthedocs.io/en/stable/user/running.html).
 
 ***Warning:*** Clicking `Logout` will mean all sessions are closed and you will have to start again. Clicking 
 `Quit` means the server will quit and you will be in trouble. (On Azure, the server should restart after a few seconds,
