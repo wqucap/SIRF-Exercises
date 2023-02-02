@@ -7,7 +7,10 @@ class SimpleCNN(nn.Module):
     """ 
     A CNN for PET sensitivity estimation.
     Consists of 3 convolutional layers with ReLU activation. 
-    Kernel sizes are 15x15, 9x9, 5x5, 3x3, 3,3 with padding 
+    Kernel sizes are 15x15, 9x9, 5x5, 3x3, 7x7, 15x15, 3x3, 3x3.
+    Kernel sizes are designed to start with a large kernel size and then gradually decrease the kernel size 
+    in order to capture large scale features and then small scale features.
+    The kernels size then ramps back up to preserve edge information.
     Input:
         2 images (sensitivity with no motion and attenuation correction map)
     Output:
@@ -26,7 +29,7 @@ class SimpleCNN(nn.Module):
         self.conv8 = nn.Conv2d(16, 1, 3, padding=1)
 
     def forward(self, x):
-        x[:,1,:,:]=x[:,1,:,:].mul(10)
+        x[:,1,:,:]=x[:,1,:,:].mul(10) # multiply the attenuation correction map by the ratio of the sensitivity with no motion to the sensitivity with motion 
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))

@@ -94,6 +94,7 @@ class EllipsesDataset(torch.utils.data.Dataset):
             sens_image = self.__get_sensitivity__(ct_image) # random sensitivity image
             theta, tx, ty, sx, sy = generate_random_transform_values()
             ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy, ct_image) # CT of transformed image
+            ct_image_transform.move_to_scanner_centre(self.template)
             sens_image_transform = self.__get_sensitivity__(ct_image_transform) # sensitivity map of transformed image
 
         elif self.mode == "valid":
