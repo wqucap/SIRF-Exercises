@@ -104,7 +104,7 @@ class EllipsesDataset(torch.utils.data.Dataset):
             uMap_arr = vol['uMap'] # random CT brain image
             umap_zoomed = crop(zoom(uMap_arr, 1, order=1), 155, 155)
             ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_zoomed[50,:,:], axis=0)) # random CT image
-            sens_image = self.__get_sensitivity__(ct_image) # sensitivity image
+            sens_image = self.__get_sensitivity__(ct_image) # sensitivity image 
             theta, tx, ty, sx, sy = generate_random_transform_values()
             ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy,ct_image) # CT of transformed image
             sens_image_transform = self.__get_sensitivity__(ct_image_transform.clone())
@@ -112,4 +112,4 @@ class EllipsesDataset(torch.utils.data.Dataset):
         else:
             NotImplementedError
         
-        return np.array([np.squeeze(sens_image.as_array()), np.squeeze(ct_image_transform.as_array())]), sens_image_transform.as_array()#-sens_image.as_array()
+        return np.array([np.squeeze(sens_image.as_array()), np.squeeze(ct_image_transform.as_array())]), sens_image_transform.as_array()

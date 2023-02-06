@@ -33,14 +33,14 @@ radon_transform = AcquisitionModelUsingRayTracingMatrix()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-mini_batch_train = 2**3
+mini_batch_train = 2**6
 mini_batch_valid = 2**2
 
 train_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 2**10) \
+    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 2**16) \
     , batch_size=mini_batch_train, shuffle=True)
 valid_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 2**2) \
+    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 2**4) \
     , batch_size=mini_batch_valid, shuffle=False)
 
 net = SimpleCNN()
@@ -60,10 +60,11 @@ net.eval() # eval mode
 with torch.no_grad():
     for valid in valid_dataloader:
         X, y = valid
-
+        net.zero_grad() 
+        optimizer.zero_grad()
         loss = loss_function(net(X.to(device)), y.to(device))
-        valid_loss_history.append(loss.item())
-        sum_valid_loss += loss.item()
+        valid_loss_history.append(float(loss))
+        sum_valid_loss += float(loss)
 
     valid_loss_history_mean.append(sum_valid_loss/len(valid_dataloader))
 for epoch in range(5): # 5 full passes over the data
@@ -72,10 +73,10 @@ for epoch in range(5): # 5 full passes over the data
     for data in train_dataloader:  # `data` is a batch of data
         X, y = data  # X is the batch of features, y is the batch of targets.
         net.zero_grad()  # sets gradients to 0 before loss calc. You will do this likely every step.
-
+        optimizer.zero_grad()  # zero the gradient buffers
         output = net(X.to(device))  # pass in the reshaped batch
         loss = loss_function(output, y.to(device))  # calc and grab the loss value
-        train_loss_history.append(loss)
+        train_loss_history.append(float(loss))
         
         loss.backward()  # apply this loss backwards thru the network's parameters
         optimizer.step()  # attempt to optimize weights to account for loss/gradients
@@ -85,10 +86,11 @@ for epoch in range(5): # 5 full passes over the data
     with torch.no_grad():
         for valid in valid_dataloader:
             X, y = valid
-
+            net.zero_grad()
+            optimizer.zero_grad()
             loss = loss_function(net(X.to(device)), y.to(device))
-            valid_loss_history.append(loss.item())
-            sum_valid_loss += loss.item()
+            valid_loss_history.append(float(loss))
+            sum_valid_loss += float(loss)
 
         valid_loss_history_mean.append(sum_valid_loss/len(valid_dataloader))
     lr/=2
@@ -96,19 +98,15 @@ for epoch in range(5): # 5 full passes over the data
 
     torch.cuda.empty_cache() #Clearing GPU cache
 
-    print("Epoch: ", epoch, "Train loss: ", train_loss_history[-1].item(), "Valid loss: ", valid_loss_history_mean[-1])
+    print("Epoch: ", epoch, "Train loss: ", train_loss_history[-1], "Valid loss: ", valid_loss_history_mean[-1])
 
-torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model_cnn.pt"))
-
-loss_history = []
-for i in train_loss_history:
-    loss_history.append(i.item())
+torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model_cnn_large.pt"))
     
-plt.plot(loss_history, label = "train", color = "red")
+plt.plot(train_loss_history, label = "train", color = "red")
 
 x = np.arange(0, len(valid_loss_history_mean))
-x*=len(loss_history)//(len(valid_loss_history_mean)-1)
+x*=len(train_loss_history)//(len(valid_loss_history_mean)-1)
 plt.scatter(x, valid_loss_history_mean, label = "valid average", color = "blue")
 
 plt.legend()
-plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history_CNN.png"))
+plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history_CNN_large.png"))
