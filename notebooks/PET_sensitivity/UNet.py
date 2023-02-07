@@ -4,6 +4,9 @@ import torch.nn.functional as F
 import torchvision
 
 def pad_to(x, stride):
+    """ 
+    Pads the input tensor to the next multiple of stride.
+    """
     h, w = x.shape[-2:]
 
     if h % stride > 0:
@@ -18,13 +21,14 @@ def pad_to(x, stride):
     lw, uw = int((new_w-w) / 2), int(new_w-w) - int((new_w-w) / 2)
     pads = (lw, uw, lh, uh)
 
-    # zero-padding by default.
-    # See others at https://pytorch.org/docs/stable/nn.functional.html#torch.nn.functional.pad
     out = F.pad(x, pads, "constant", 0)
 
     return out, pads
 
 def unpad(x, pad):
+    """
+    Function to unpad the input tensor.
+    """
     if pad[2]+pad[3] > 0:
         x = x[:,:,pad[2]:-pad[3],:]
     if pad[0]+pad[1] > 0:
@@ -36,77 +40,153 @@ class Block(nn.Module):
     A block of two convolutional layers with ReLU activation. 
     """
     
-    def __init__(self, in_ch, out_ch):
+    def __init__(self, in_ch, out_ch, leaky = False):
         super().__init__()
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size = 5, stride = 1, padding=(2,2))
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size = 5, stride = 1, padding=(2,2))
         # leaky relu activation function
-        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
+        if leaky:
+            self.relu = nn.LeakyReLU(0.2, inplace=True)
+        else:
+            self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        x = self.lrelu(self.conv1(x))
-        x = self.lrelu(self.conv2(x))
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        return x
+    
+class DownConv(nn.Module):
+    """
+    A convolutional layer with stride 2.
+    """
+    
+    def __init__(self, in_ch):
+        super().__init__()
+        self.conv = nn.Conv2d(in_ch, in_ch, kernel_size = 5, stride = 2, padding=(2,2))
+        # leaky relu activation function
+        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
+        
+    def forward(self, x):
+        x = self.lrelu(self.conv(x))
+        return x
+    
+class UpConv(nn.Module):
+    """
+    A transposed convolutional layer with stride 2
+    """
+    
+    def __init__(self, in_ch):
+        super().__init__()
+        self.conv = nn.ConvTranspose2d(in_ch, in_ch, kernel_size = 5, stride = 2, padding = (2,2), output_padding=(1,1))
+        # leaky relu activation function
+        self.lrelu = nn.LeakyReLU(0.2, inplace=True)
+        
+    def forward(self, x):
+        x = self.lrelu(self.conv(x))
+        return x
+    
+class ConvRelu(nn.Module):
+    """
+    A convolutional layer with stride 1.
+    """
+    
+    def __init__(self, in_ch, out_ch, leaky = True):
+        super().__init__()
+        self.conv = nn.Conv2d(in_ch, out_ch, kernel_size = 3, stride = 1, padding=(1,1))
+        # relu activation function
+        if leaky:
+            self.relu = nn.LeakyReLU(0.2, inplace=True)
+        else:
+            self.relu = nn.ReLU(inplace=True)
+        
+    def forward(self, x):
+        x = self.relu(self.conv(x))
         return x
     
 class Encoder(nn.Module):
     """ 
     Encoder of the U-Net.
+    Used Leakly ReLU activation function.
     """
-    def __init__(self, chs=(2,16,32,32,32,32)):
+    def __init__(self, chs):
         super().__init__()
-        self.chs         = chs # number of channels
-        self.enc_blocks = nn.ModuleList([Block(chs[i], chs[i+1]) for i in range(len(chs)-1)])
-        self.down_convs = nn.ModuleList([nn.Conv2d(chs[i+1], chs[i+1], kernel_size = 5, stride = 2, padding=(2,2)) for i in range(len(chs)-1)])
-
+        self.blocks = nn.ModuleList()
+        for i in range(len(chs)-1):
+            self.blocks.append(Block(chs[i], chs[i+1], leaky = True))
+        self.down_convs = nn.ModuleList()
+        for i in range(len(chs)-1):
+            self.down_convs.append(DownConv(chs[i+1]))
+    
     def forward(self, x):
-        encoder_features = []
-        for i in range(len(self.chs)-1):
-            x = self.enc_blocks[i](x)
-            encoder_features.append(x)
+        skip_connections = []
+        for i in range(len(self.blocks)):
+            x = self.blocks[i](x)
+            skip_connections.append(x)
             x = self.down_convs[i](x)
-        return encoder_features
-
-
-class Decoder(nn.Module):
-    """ 
-    Decoder of the U-Net.
+        return x, skip_connections
+    
+class Latent(nn.Module):
     """
-    def __init__(self, chs=(32,32,32,32,16)):
+    Latent layer of the U-Net.
+    n convolutional layers with leaky ReLU activation.
+    """
+    
+    def __init__(self, n, in_ch, k_size):
         super().__init__()
-        self.chs         = chs # number of channels
-        self.upconvs    = nn.ModuleList([nn.ConvTranspose2d(chs[i], chs[i+1], kernel_size = 5, stride = 2, padding=(2,2), output_padding=(1,1)) for i in range(len(chs)-1)])
-        self.dec_blocks = nn.ModuleList([Block(chs[i+1], chs[i+1]) for i in range(len(chs)-1)]) # decoder blocks
-
-    def forward(self, x, encoder_features):
-        for i in range(len(self.chs)-1):
-            x = self.upconvs[i](x)
-            x += encoder_features[i+1]
-            x = self.dec_blocks[i](x)
+        self.convs = nn.ModuleList()
+        for i in range(n):
+            self.convs.append(nn.Conv2d(in_ch, in_ch, kernel_size = k_size, stride = 1, padding=(k_size//2,k_size//2)))
+            
+        
+    def forward(self, x):
+        for i in range(len(self.convs)):
+            x = self.convs[i](x)
+            x = nn.LeakyReLU(0.2, inplace=True)(x)
+        return x
+            
+class Decoder(nn.Module):
+    """
+    Decoder of the U-Net.
+    Uses Relu activation function.
+    """
+    def __init__(self, chs):
+        super().__init__()
+        self.up_convs = nn.ModuleList()
+        for i in range(1, len(chs)):
+            self.up_convs.append(UpConv(chs[-i]))
+        self.blocks = nn.ModuleList()
+        for i in range(1, len(chs)):
+            self.blocks.append(Block(chs[-i], chs[-(i+1)], leaky=False))
+        
+    def forward(self, x, skip_connections):
+        for i in range(1, len(self.blocks)+1):
+            x = self.up_convs[i-1](x)
+            x = x + skip_connections[-i]
+            x = self.blocks[i-1](x)
         return x
     
 class UNet(nn.Module):
-    """ 
-    U-Net architecture.
     """
-    def __init__(self, enc_chs=(2,16,32,32,32,32), dec_chs=(32,32,32,32,16), out_chs=(16,16,3), num_class=1, retain_dim=True, out_sz=(155,155)):
+    U-Net model.
+    """
+    def __init__(self, in_ch, out_ch, chs, n_latent, k_size_latent, padding):
         super().__init__()
-        self.encoder = Encoder(enc_chs)
-        self.decoder = Decoder(dec_chs)
-        self.conv = nn.Conv2d(dec_chs[-1], out_chs[0], kernel_size = 5, stride = 1, padding=(2,2))
-        self.convs =  nn.ModuleList([nn.Conv2d(out_chs[i], out_chs[i+1], kernel_size = 5, stride = 1, padding=(2,2)) for i in range(len(out_chs)-1)])
-        self.outconv = nn.Conv2d(out_chs[-1], num_class, kernel_size = 1, stride = 1)
-        self.retain_dim = retain_dim
-        self.out_sz = out_sz
-
+        self.inc = ConvRelu(in_ch, chs[0], leaky = True)
+        self.encoder = Encoder(chs)
+        self.latent = Latent(n_latent, chs[-1], k_size_latent)
+        self.decoder = Decoder(chs)
+        self.outc = ConvRelu(chs[0], out_ch, leaky = False)
+        self.padding = padding
+        
     def forward(self, x):
-        x[:,1,:,:]=x[:,1,:,:].mul(x[:,0,:,:]/x[:,1,:,:])
-        x, pad = pad_to(x, 8)
-        encoder_features = self.encoder(x)
-        x = self.decoder(encoder_features[-1], encoder_features[::-1])
-        x = self.conv(x)
-        for i in range(len(self.convs)):
-            x = self.convs[i](x)
-        x = self.outconv(x)
+        x, pad = pad_to(x, self.padding)
+        x = self.inc(x)
+        x, skip_connections = self.encoder(x)
+        x = self.latent(x)
+        x = self.decoder(x, skip_connections)
+        x = self.outc(x)
         x = unpad(x, pad)
         return x
-
+        
+            
+    

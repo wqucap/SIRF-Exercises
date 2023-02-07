@@ -1,3 +1,4 @@
+#%%
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +11,7 @@ import os
 import numpy as np
 
 from CNN import SimpleCNN
+from UNet import UNet
 
 from odl_funcs.ellipses import EllipsesDataset
 
@@ -37,16 +39,18 @@ mini_batch_train = 2**6
 mini_batch_valid = 2**2
 
 train_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 2**16) \
+    EllipsesDataset(radon_transform, attn_image, template, mode="train", n_samples = 2**14) \
     , batch_size=mini_batch_train, shuffle=True)
 valid_dataloader = torch.utils.data.DataLoader( \
-    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 2**4) \
+    EllipsesDataset(radon_transform, attn_image, template, mode="valid", n_samples = 2**3) \
     , batch_size=mini_batch_valid, shuffle=False)
 
-net = SimpleCNN()
+net = UNet(in_ch = 2, out_ch = 1, chs = (8, 16, 32, 32, 32), n_latent = 2, k_size_latent=3, padding = 8)
 net.to(device)
 
 lr = 0.0001
+
+#%%
 
 loss_function = nn.MSELoss()
 optimizer = optim.Adam(net.parameters(), lr=lr)
@@ -100,7 +104,7 @@ for epoch in range(5): # 5 full passes over the data
 
     print("Epoch: ", epoch, "Train loss: ", train_loss_history[-1], "Valid loss: ", valid_loss_history_mean[-1])
 
-torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model_cnn_large.pt"))
+torch.save(net.state_dict(), os.path.join(os.path.dirname(__file__), "model_unet.pt"))
     
 plt.plot(train_loss_history, label = "train", color = "red")
 
@@ -109,4 +113,4 @@ x*=len(train_loss_history)//(len(valid_loss_history_mean)-1)
 plt.scatter(x, valid_loss_history_mean, label = "valid average", color = "blue")
 
 plt.legend()
-plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history_CNN_large.png"))
+plt.savefig(os.path.join(os.path.dirname(__file__), "loss_history_UNet.png"))
