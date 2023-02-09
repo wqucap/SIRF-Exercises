@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import zoom
 
 def generate_random_transform_values():
-    theta = np.random.uniform(-np.pi/8, np.pi/8)
-    tx, ty = np.random.uniform(-2, 2), np.random.uniform(-2, 2)
-    sx, sy = np.random.uniform(0.9, 1.0), np.random.uniform(0.9, 1.0)
+    theta = np.random.uniform(-np.pi/16, np.pi/16)
+    tx, ty = np.random.uniform(-1, 1), np.random.uniform(-1, 5)
+    sx, sy = np.random.uniform(0.95, 1.05), np.random.uniform(0.95, 1.05)
     return theta, tx, ty, sx, sy
 
 # make average image value n
