@@ -19,7 +19,7 @@ class SimpleCNN(nn.Module):
 
     def __init__(self):
         super(SimpleCNN, self).__init__()
-        self.conv1 = nn.Conv2d(2, 16, 15, padding=7)
+        self.conv1 = nn.Conv2d(3, 16, 15, padding=7)
         self.conv2 = nn.Conv2d(16, 32, 9, padding=4)
         self.conv3 = nn.Conv2d(32, 64, 5, padding=2)
         self.conv4 = nn.Conv2d(64, 64, 3, padding=1)
@@ -39,4 +39,3 @@ class SimpleCNN(nn.Module):
         x = F.relu(self.conv7(x))
         x = F.relu(self.conv8(x))
         return x
-

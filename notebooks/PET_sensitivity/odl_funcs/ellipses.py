@@ -96,12 +96,16 @@ class EllipsesDataset(torch.utils.data.Dataset):
             ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy, ct_image) # CT of transformed image
             ct_image_transform.move_to_scanner_centre(self.template)
             sens_image_transform = self.__get_sensitivity__(ct_image_transform) # sensitivity map of transformed image
+   
+
 
         elif self.mode == "valid":
+        ## instead of using a random phantom image, loads a brain image from the BrainWeb database.
             brainweb.seed(np.random.randint(500,1500))
             for f in tqdm([fname], desc="mMR ground truths", unit="subject"):
                 vol = brainweb.get_mmr_fromfile(f, petNoise=1, t1Noise=0.75, t2Noise=0.75, petSigma=1, t1Sigma=1, t2Sigma=1)
             uMap_arr = vol['uMap'] # random CT brain image
+        ## first zoomed and then cropped.
             umap_zoomed = crop(zoom(uMap_arr, 1, order=1), 155, 155)
             ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_zoomed[50,:,:], axis=0)) # random CT image
             sens_image = self.__get_sensitivity__(ct_image) # sensitivity image 
@@ -111,5 +115,6 @@ class EllipsesDataset(torch.utils.data.Dataset):
 
         else:
             NotImplementedError
-        
-        return np.array([np.squeeze(sens_image.as_array()), np.squeeze(ct_image_transform.as_array())]), sens_image_transform.as_array()
+        ## returning the sensitivity map of the original image and the transformed image, as well as the transformed CT image
+      #  return np.array([np.squeeze(sens_image.as_array()),np.squeeze(ct_image.as_array()), np.squeeze(ct_image_transform.as_array())]), sens_image_transform.as_array()
+        return np.array([np.squeeze(sens_image.as_array()),np.squeeze(ct_image.as_array()), np.squeeze(ct_image_transform.as_array())]), np.array([np.squeeze(sens_image.as_array()),np.squeeze(sens_image_transform.as_array())]) 
