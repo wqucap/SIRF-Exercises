@@ -197,8 +197,9 @@ class EllipsesDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Generates one sample of data
         if self.mode == "train":
-            random_phantom_array = make_max_n(random_polygons_array(self.attenuation_image_template.shape, 20, min_n=3, max_n=8, min_size=5, max_size=50), 0.096*2)
-#             random_phantom_array = make_max_n(random_phantom(self.attenuation_image_template.shape, 20), 0.096*2)
+#             random_phantom_array = make_max_n(random_polygons_array(self.attenuation_image_template.shape, 20, min_n=3, max_n=8, min_size=5, max_size=50), 0.096*2)
+
+            random_phantom_array = make_max_n(random_phantom(self.attenuation_image_template.shape, 20), 0.096*2)
             ct_image = self.attenuation_image_template.clone().fill(random_phantom_array) # random CT image
             sens_image = self.__get_sensitivity__(ct_image) # random sensitivity image
             theta, tx, ty, sx, sy = generate_random_transform_values()
@@ -207,17 +208,40 @@ class EllipsesDataset(torch.utils.data.Dataset):
             sens_image_transform = self.__get_sensitivity__(ct_image_transform) # sensitivity map of transformed image
    
 
-
+        
+        
         elif self.mode == "valid":
         ## instead of using a random phantom image, loads a brain image from the BrainWeb database.
+#             brainweb.seed(np.random.randint(500,1500))
+#             for f in tqdm([fname], desc="mMR ground truths", unit="subject"):
+#                 vol = brainweb.get_mmr_fromfile(f, petNoise=1, t1Noise=0.75, t2Noise=0.75, petSigma=1, t1Sigma=1, t2Sigma=1)
+#             uMap_arr = vol['uMap'] # random CT brain image
+#         ## first zoomed and then cropped.
+#             umap_zoomed = crop(zoom(uMap_arr, 1, order=1), 155, 155)
+#             ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_zoomed[50,:,:], axis=0)) # random CT image
+#             sens_image = self.__get_sensitivity__(ct_image) # sensitivity image 
+#             theta, tx, ty, sx, sy = generate_random_transform_values()
+#             ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy,ct_image) # CT of transformed image
+#             sens_image_transform = self.__get_sensitivity__(ct_image_transform.clone())
+
+            # instead of using a random phantom image, loads a brain image from the BrainWeb database.
             brainweb.seed(np.random.randint(500,1500))
             for f in tqdm([fname], desc="mMR ground truths", unit="subject"):
                 vol = brainweb.get_mmr_fromfile(f, petNoise=1, t1Noise=0.75, t2Noise=0.75, petSigma=1, t1Sigma=1, t2Sigma=1)
+
             uMap_arr = vol['uMap'] # random CT brain image
-        ## first zoomed and then cropped.
+
+            # first zoomed and then cropped.
             umap_zoomed = crop(zoom(uMap_arr, 1, order=1), 155, 155)
-            ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_zoomed[50,:,:], axis=0)) # random CT image
+
+            # Randomly select a slice from index 40 to 80 (inclusive of 40, exclusive of 80)
+            random_idx = np.random.randint(40, 80)
+            umap_slice = umap_zoomed[random_idx, :, :]
+
+            # Incorporate this slice into your array
+            ct_image = self.attenuation_image_template.fill(np.expand_dims(umap_slice, axis=0)) # random CT image
             sens_image = self.__get_sensitivity__(ct_image) # sensitivity image 
+
             theta, tx, ty, sx, sy = generate_random_transform_values()
             ct_image_transform = affine_transform_2D_image(theta, tx, ty, sx, sy,ct_image) # CT of transformed image
             sens_image_transform = self.__get_sensitivity__(ct_image_transform.clone())
